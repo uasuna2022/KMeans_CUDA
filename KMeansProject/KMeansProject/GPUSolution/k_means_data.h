@@ -20,7 +20,6 @@ public:
 	int* d_labels;
 	float* d_sums;
 	int* d_counts;
-	float* d_old_centroids;
 
 	KMeansData(int n, int k, int d);
 	~KMeansData();
