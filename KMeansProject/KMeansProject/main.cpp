@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <chrono>
 #include "CPUSolution/cpu_implementation.h"
+#include "GPUSolution/k_means_data.h"
+#include "GPUSolution/gpu1_kernel_functions.cuh"
 
 void usage(int argc, char** argv)
 {
@@ -46,6 +48,18 @@ void initializeData(int k, int n, int d, std::vector<float>& h_points, std::vect
 	}
 }
 
+void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::vector<float>& soa)
+{
+	soa.resize(n * d);
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < d; j++)
+		{
+			soa[j * n + i] = aos[i * d + j];
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
 	if (argc != 5)
@@ -73,19 +87,51 @@ int main(int argc, char** argv)
 	std::vector<int> h_labels(n, -1);
 	initializeData(k, n, d, h_points, h_centroids);
 
+	auto start_time = std::chrono::high_resolution_clock::now();
 	if (version == "cpu")
 	{
-		auto start_time = std::chrono::high_resolution_clock::now();
-		run_k_means_algo(200, 0.0001F, h_points, h_centroids, h_labels, k, n, d);
-		auto end_time = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed = end_time - start_time;
-		std::cout << "Time elapsed: " << elapsed.count() << std::endl;
+		run_k_means_algo(500, 0.0001F, h_points, h_centroids, h_labels, k, n, d);
 	}
 	else if (version == "gpu1")
 	{
-		// gpu1 logic
+		KMeansData data(n, k, d);
+
+		std::vector<float> h_points_soa;
+		std::vector<float> h_centroids_soa;
+		cpu_transform_aos_to_soa(n, d, h_points, h_points_soa);
+		cpu_transform_aos_to_soa(k, d, h_centroids, h_centroids_soa);
+
+		data.fill_gpu_data(h_points_soa, h_centroids_soa);
+
+		int max_iterations = 500;
+		int iteration_number = 0;
+		float eps = 0.0001F;
+		float delta = 0.0F;
+
+		while (iteration_number <= max_iterations)
+		{
+			auto start_time_it = std::chrono::high_resolution_clock::now();
+			make_iteration(&data, &iteration_number, &delta);
+			auto end_time_it = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> elapsed_it = end_time_it - start_time_it;
+			std::cout << "Iteration " << iteration_number << ": " << elapsed_it.count() << " | delta = " << delta << std::endl;
+
+			if (delta < eps)
+			{
+				std::cout << "Algorithm has been stopped as as centroids have become stable (delta < epsilon) in iteration nr. " <<
+					iteration_number << std::endl;
+				break;
+			}
+		}
+		if (iteration_number > max_iterations)
+		{
+			std::cout << "Algorithm has been stopped as maximum number of iterations happened" << std::endl;
+		}
 	}
 	else {} // gpu2 logic
 	
+	auto end_time = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = end_time - start_time;
+	std::cout << "Time elapsed: " << elapsed.count() << std::endl;
 	return 0;
 }

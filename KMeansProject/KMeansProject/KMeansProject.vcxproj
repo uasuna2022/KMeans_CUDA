@@ -55,6 +55,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_60,sm_60</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -74,6 +75,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_60,sm_60</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -82,6 +84,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CPUSolution\cpu_implementation.h" />
+    <ClInclude Include="GPUSolution\gpu1_kernel_functions.cuh" />
+    <ClInclude Include="GPUSolution\k_means_data.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="GPUSolution\gpu1_kernel_functions.cu" />
+    <CudaCompile Include="GPUSolution\k_means_data.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
