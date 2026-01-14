@@ -89,10 +89,7 @@ void make_iteration(KMeansData* data, int* iteration_number, float* delta)
 
 	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(float)));
 	CHECK_CUDA(cudaMemset(data->d_counts, 0, K * sizeof(int)));
-
-	float* d_cluster_deltas;
-	CHECK_CUDA(cudaMalloc(&d_cluster_deltas, K * sizeof(float)));
-	CHECK_CUDA(cudaMemset(d_cluster_deltas, 0, K * sizeof(float)));
+	CHECK_CUDA(cudaMemset(data->d_deltas, 0, K * sizeof(float)));
 
 	int blocks_number = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 	size_t shared_memory_size = K * sizeof(int) + 2 * K * D * sizeof(float);
@@ -102,19 +99,18 @@ void make_iteration(KMeansData* data, int* iteration_number, float* delta)
 	cudaDeviceSynchronize();
 
 	int blocks_centroids = (K * D + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	update_centroids << <blocks_centroids, BLOCK_SIZE >> > (data->d_centroids, data->d_sums, data->d_counts, K, D, d_cluster_deltas);
+	update_centroids << <blocks_centroids, BLOCK_SIZE >> > (data->d_centroids, data->d_sums, data->d_counts, K, D, data->d_deltas);
 
-	std::vector<float> h_cluster_deltas;
-	h_cluster_deltas.resize(K);
-	CHECK_CUDA(cudaMemcpy(h_cluster_deltas.data(), d_cluster_deltas, K * sizeof(float), cudaMemcpyDeviceToHost));
+	std::vector<float> h_deltas;
+	h_deltas.resize(K);
+	CHECK_CUDA(cudaMemcpy(h_deltas.data(), data->d_deltas, K * sizeof(float), cudaMemcpyDeviceToHost));
 
 	float total_shift = 0.0F;
 	for (int i = 0; i < K; i++)
-		total_shift += std::sqrt(h_cluster_deltas[i]);
+		total_shift += std::sqrt(h_deltas[i]);
 
 	*delta = total_shift;
 	(*iteration_number)++;
 
-	cudaFree(d_cluster_deltas);
 	cudaDeviceSynchronize();
 }
