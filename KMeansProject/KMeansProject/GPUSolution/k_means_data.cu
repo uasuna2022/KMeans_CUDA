@@ -8,6 +8,7 @@ void KMeansData::allocate_memory()
 	CHECK_CUDA(cudaMalloc((void**)&d_sums, k * d * sizeof(float)));
 	CHECK_CUDA(cudaMalloc((void**)&d_counts, k * sizeof(int)));
 	CHECK_CUDA(cudaMalloc((void**)&d_deltas, k * sizeof(float)));
+	CHECK_CUDA(cudaMalloc((void**)&d_changes_count, sizeof(int)));
 }
 
 
@@ -32,6 +33,8 @@ void KMeansData::free_memory()
 		cudaFree(d_counts);
 	if (d_deltas)
 		cudaFree(d_deltas);
+	if (d_changes_count)
+		cudaFree(d_changes_count);
 }
 
 KMeansData::~KMeansData()
@@ -47,4 +50,5 @@ void KMeansData::fill_gpu_data(const std::vector<float>& h_points_soa, const std
 	CHECK_CUDA(cudaMemset(d_counts, 0, k * sizeof(int)));
 	CHECK_CUDA(cudaMemset(d_sums, 0.0F, k * d * sizeof(float)));
 	CHECK_CUDA(cudaMemset(d_deltas, 0.0F, k * sizeof(float)));
+	CHECK_CUDA(cudaMemset(d_changes_count, 0, sizeof(int)));
 }

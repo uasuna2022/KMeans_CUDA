@@ -105,20 +105,28 @@ int main(int argc, char** argv)
 
 		int max_iterations = 500;
 		int iteration_number = 0;
+		int points_changed = 0;
 		float eps = 0.0001F;
 		float delta = 0.0F;
 
 		while (iteration_number <= max_iterations)
 		{
 			auto start_time_it = std::chrono::high_resolution_clock::now();
-			make_iteration(&data, &iteration_number, &delta);
+			make_iteration(&data, &iteration_number, &delta, &points_changed);
 			auto end_time_it = std::chrono::high_resolution_clock::now();
 			std::chrono::duration<double> elapsed_it = end_time_it - start_time_it;
-			std::cout << "Iteration " << iteration_number << ": " << elapsed_it.count() << " | delta = " << delta << std::endl;
+			std::cout << "Iteration " << iteration_number << ": " << elapsed_it.count() << " | delta = " << delta  
+				<< " | Points changed cluster = " << points_changed << std::endl;
 
 			if (delta < eps)
 			{
 				std::cout << "Algorithm has been stopped as as centroids have become stable (delta < epsilon) in iteration nr. " <<
+					iteration_number << std::endl;
+				break;
+			}
+			if (points_changed == 0)
+			{
+				std::cout << "Algorithm has been stopped as no points have changed their cluster in iteration nr. " <<
 					iteration_number << std::endl;
 				break;
 			}

@@ -6,15 +6,21 @@
 #define BLOCK_SIZE 512
 
 __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, float* __restrict__ d_centroids, 
-	int* __restrict__ d_labels, int n, int k, int d, float* __restrict__ d_sums, int* __restrict__ d_counts)
+	int* __restrict__ d_labels, int n, int k, int d, float* __restrict__ d_sums, int* __restrict__ d_counts,
+	int* __restrict__ d_changes_count)
 {
 	extern __shared__ char shared_memory[];
 	int* shared_counts = (int*)shared_memory;
 	float* shared_sums = (float*)(shared_counts + k);
 	float* shared_centroids = (float*)(shared_sums + k * d);
 
+	__shared__ int shared_block_changes_counter;
+
 	int tid = threadIdx.x;
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (tid == 0) 
+		shared_block_changes_counter = 0;
 	for (int i = tid; i < k; i += blockDim.x)
 		shared_counts[i] = 0;
 	for (int i = tid; i < k * d; i += blockDim.x)
@@ -44,7 +50,12 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 			}
 		}
 
-		d_labels[idx] = nearest_cluster;
+		if (nearest_cluster != d_labels[idx])
+		{
+			d_labels[idx] = nearest_cluster;
+			atomicAdd(&shared_block_changes_counter, 1);
+		}
+
 		atomicAdd(&shared_counts[nearest_cluster], 1);
 
 		for (int j = 0; j < d; j++)
@@ -53,6 +64,8 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 
 	__syncthreads();
 
+	if (tid == 0 && shared_block_changes_counter > 0)
+		atomicAdd(d_changes_count, shared_block_changes_counter);
 	for (int i = tid; i < k; i += blockDim.x)
 	{
 		if (shared_counts[i] > 0)
@@ -81,7 +94,7 @@ __global__ void update_centroids(float* __restrict__ d_centroids, const float* _
 	}
 }
 
-void make_iteration(KMeansData* data, int* iteration_number, float* delta)
+void make_iteration(KMeansData* data, int* iteration_number, float* delta, int* points_changed)
 {
 	int N = data->n;
 	int K = data->k;
@@ -90,12 +103,13 @@ void make_iteration(KMeansData* data, int* iteration_number, float* delta)
 	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(float)));
 	CHECK_CUDA(cudaMemset(data->d_counts, 0, K * sizeof(int)));
 	CHECK_CUDA(cudaMemset(data->d_deltas, 0, K * sizeof(float)));
+	CHECK_CUDA(cudaMemset(data->d_changes_count, 0, sizeof(int)));
 
 	int blocks_number = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
 	size_t shared_memory_size = K * sizeof(int) + 2 * K * D * sizeof(float);
 
 	calculate_sums_and_counts << <blocks_number, BLOCK_SIZE, shared_memory_size>> > (
-		data->d_points, data->d_centroids, data->d_labels, N, K, D, data->d_sums, data->d_counts);
+		data->d_points, data->d_centroids, data->d_labels, N, K, D, data->d_sums, data->d_counts, data->d_changes_count);
 	cudaDeviceSynchronize();
 
 	int blocks_centroids = (K * D + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -108,9 +122,12 @@ void make_iteration(KMeansData* data, int* iteration_number, float* delta)
 	float total_shift = 0.0F;
 	for (int i = 0; i < K; i++)
 		total_shift += std::sqrt(h_deltas[i]);
-
 	*delta = total_shift;
-	(*iteration_number)++;
 
+	int h_changes = 0;
+	CHECK_CUDA(cudaMemcpy(&h_changes, data->d_changes_count, sizeof(int), cudaMemcpyDeviceToHost));
+	*points_changed = h_changes;
+
+	(*iteration_number)++;
 	cudaDeviceSynchronize();
 }
