@@ -9,18 +9,7 @@
 #include "GPUSolution/k_means_data.h"
 #include "GPUSolution/gpu1_kernel_functions.cuh"
 #include "GPUSolution/gpu2_kernel_functions.cuh"
-
-struct BenchmarkResult
-{
-	std::string name;
-	double memory_copy_time;
-	double calculation_time;
-	double total_time;
-	int iterations;
-	double avg_iteration_time;
-};
-
-typedef void (*GpuIterationFunction)(KMeansData*, int*, float*, int*);
+#include "file_io.h"
 
 void usage(int argc, char** argv)
 {
@@ -30,6 +19,19 @@ void usage(int argc, char** argv)
 	std::cout << "\tn - number of points (1000 <= n <= 10000000)\n";
 	std::cout << "\td - dimension (1 <= d <= 128)\n";
 	exit(EXIT_FAILURE);
+}
+
+void checkLoading(std::vector<float>& h_points, int n, int d, int k)
+{
+	std::cout << n << " " << d << " " << k << std::endl;
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < d; j++)
+		{
+			std::cout << h_points[i * d + j] << " ";
+		}
+		std::cout << std::endl;
+	}
 }
 
 void initializeData(int k, int n, int d, std::vector<float>& h_points, std::vector<float>& h_centroids)
@@ -77,6 +79,24 @@ void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::
 
 int main(int argc, char** argv)
 {
+	{
+		// TESTING FEATURES
+		int n;
+		int k;
+		int d;
+		std::vector<float> h_points;
+		const std::string filename = "./data/data.txt";
+		if (!load_data(filename, "txt", n, d, k, h_points))
+		{
+			std::cout << "ERROR!" << std::endl;
+			return EXIT_FAILURE;
+		}
+		else checkLoading(h_points, n, d, k);
+		return EXIT_SUCCESS;
+	}
+
+
+
 	if (argc != 5)
 		usage(argc, argv);
 

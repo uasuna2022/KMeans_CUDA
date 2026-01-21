@@ -80,10 +80,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CPUSolution\cpu_implementation.cpp" />
+    <ClCompile Include="file_io.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CPUSolution\cpu_implementation.h" />
+    <ClInclude Include="file_io.h" />
     <ClInclude Include="GPUSolution\gpu1_kernel_functions.cuh" />
     <ClInclude Include="GPUSolution\gpu2_kernel_functions.cuh" />
     <ClInclude Include="GPUSolution\k_means_data.h" />
