@@ -12,7 +12,6 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 	extern __shared__ char shared_memory[];
 	int* shared_counts = (int*)shared_memory;
 	float* shared_sums = (float*)(shared_counts + k);
-	float* shared_centroids = (float*)(shared_sums + k * d);
 
 	__shared__ int shared_block_changes_counter;
 
@@ -25,8 +24,6 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 		shared_counts[i] = 0;
 	for (int i = tid; i < k * d; i += blockDim.x)
 		shared_sums[i] = 0.0F;
-	for (int i = tid; i < k * d; i += blockDim.x)
-		shared_centroids[i] = d_centroids[i];
 	
 	__syncthreads();
 
@@ -39,7 +36,7 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 			float dist = 0.0F;
 			for (int j = 0; j < d; j++)
 			{
-				float diff = shared_centroids[k * j + i] - d_points[n * j + idx];
+				float diff = d_centroids[k * j + i] - d_points[n * j + idx];
 				diff *= diff;
 				dist += diff;
 			}
@@ -106,14 +103,17 @@ void make_iteration(KMeansData* data, int* iteration_number, float* delta, int* 
 	CHECK_CUDA(cudaMemset(data->d_changes_count, 0, sizeof(int)));
 
 	int blocks_number = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	size_t shared_memory_size = K * sizeof(int) + 2 * K * D * sizeof(float);
+	size_t shared_memory_size = K * sizeof(int) + K * D * sizeof(float);
 
 	calculate_sums_and_counts << <blocks_number, BLOCK_SIZE, shared_memory_size>> > (
 		data->d_points, data->d_centroids, data->d_labels, N, K, D, data->d_sums, data->d_counts, data->d_changes_count);
-	cudaDeviceSynchronize();
+	CHECK_CUDA(cudaGetLastError());
+	CHECK_CUDA(cudaDeviceSynchronize());
 
 	int blocks_centroids = (K * D + BLOCK_SIZE - 1) / BLOCK_SIZE;
 	update_centroids << <blocks_centroids, BLOCK_SIZE >> > (data->d_centroids, data->d_sums, data->d_counts, K, D, data->d_deltas);
+	CHECK_CUDA(cudaGetLastError());
+	CHECK_CUDA(cudaDeviceSynchronize());
 
 	std::vector<float> h_deltas;
 	h_deltas.resize(K);

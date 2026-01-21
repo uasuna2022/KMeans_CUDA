@@ -85,10 +85,12 @@
   <ItemGroup>
     <ClInclude Include="CPUSolution\cpu_implementation.h" />
     <ClInclude Include="GPUSolution\gpu1_kernel_functions.cuh" />
+    <ClInclude Include="GPUSolution\gpu2_kernel_functions.cuh" />
     <ClInclude Include="GPUSolution\k_means_data.h" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="GPUSolution\gpu1_kernel_functions.cu" />
+    <CudaCompile Include="GPUSolution\gpu2_kernel_functions.cu" />
     <CudaCompile Include="GPUSolution\k_means_data.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
