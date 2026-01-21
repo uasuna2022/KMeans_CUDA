@@ -79,7 +79,7 @@ __global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, c
 
 			float diff = new_val - old_val;
 			diff *= diff;
-			atomicAdd(&d_deltas[cluster_id]);
+			atomicAdd(&d_deltas[cluster_id], diff);
 		}
 	}
 }

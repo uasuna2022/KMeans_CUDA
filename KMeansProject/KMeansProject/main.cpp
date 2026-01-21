@@ -4,10 +4,23 @@
 #include <random>
 #include <algorithm>
 #include <chrono>
+#include <iomanip>
 #include "CPUSolution/cpu_implementation.h"
 #include "GPUSolution/k_means_data.h"
 #include "GPUSolution/gpu1_kernel_functions.cuh"
 #include "GPUSolution/gpu2_kernel_functions.cuh"
+
+struct BenchmarkResult
+{
+	std::string name;
+	double memory_copy_time;
+	double calculation_time;
+	double total_time;
+	int iterations;
+	double avg_iteration_time;
+};
+
+typedef void (*GpuIterationFunction)(KMeansData*, int*, float*, int*);
 
 void usage(int argc, char** argv)
 {
@@ -61,6 +74,7 @@ void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::
 	}
 }
 
+
 int main(int argc, char** argv)
 {
 	if (argc != 5)
@@ -88,68 +102,11 @@ int main(int argc, char** argv)
 	std::vector<int> h_labels(n, -1);
 	initializeData(k, n, d, h_points, h_centroids);
 
-	/* testing features
-	std::vector<float> h_points_copy = h_points;
-	std::vector<float> h_centroids_copy = h_centroids;
-
-	auto start_time_1 = std::chrono::high_resolution_clock::now();
-	run_k_means_algo(500, 0.0001F, h_points, h_centroids, h_labels, k, n, d);
-	auto end_time_1 = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> elapsed_1 = end_time_1 - start_time_1;
-	
-	KMeansData data_gpu1(n, k, d);
-	std::vector<float> h_points_soa;
-	std::vector<float> h_centroids_soa;
-	cpu_transform_aos_to_soa(n, d, h_points_copy, h_points_soa);
-	cpu_transform_aos_to_soa(k, d, h_centroids_copy, h_centroids_soa);
-
-	data_gpu1.fill_gpu_data(h_points_soa, h_centroids_soa);
-
-	int max_iterations = 500;
-	int iteration_number = 0;
-	int points_changed = 0;
-	float eps = 0.0001F;
-	float delta = 0.0F;
-
-	auto start_time_2 = std::chrono::high_resolution_clock::now();
-	while (iteration_number <= max_iterations)
-	{
-		auto start_time_it = std::chrono::high_resolution_clock::now();
-		make_iteration(&data_gpu1, &iteration_number, &delta, &points_changed);
-		auto end_time_it = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed_it = end_time_it - start_time_it;
-		std::cout << "Iteration " << iteration_number << ": " << elapsed_it.count() << " | delta = " << delta
-			<< " | Points changed cluster = " << points_changed << std::endl;
-
-		if (delta < eps)
-		{
-			std::cout << "Algorithm has been stopped as as centroids have become stable (delta < epsilon) in iteration nr. " <<
-				iteration_number << std::endl;
-			break;
-		}
-		if (points_changed == 0)
-		{
-			std::cout << "Algorithm has been stopped as no points have changed their cluster in iteration nr. " <<
-				iteration_number << std::endl;
-			break;
-		}
-	}
-	if (iteration_number > max_iterations)
-	{
-		std::cout << "Algorithm has been stopped as maximum number of iterations happened" << std::endl;
-	}
-	auto end_time_2 = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> elapsed_2 = end_time_2 - start_time_2;
-
-	std::cout << "CPU time: " << elapsed_1.count() << std::endl << "GPU1 time: " << elapsed_2.count();
-
-	return EXIT_SUCCESS;
-	*/
 
 	auto start_time = std::chrono::high_resolution_clock::now();
 	if (version == "cpu")
 	{
-		run_k_means_algo(500, 0.0001F, h_points, h_centroids, h_labels, k, n, d);
+		run_k_means_algo(500, 0.001F, h_points, h_centroids, h_labels, k, n, d);
 	}
 	else if (version == "gpu1")
 	{
@@ -165,7 +122,7 @@ int main(int argc, char** argv)
 		int max_iterations = 500;
 		int iteration_number = 0;
 		int points_changed = 0;
-		float eps = 0.0001F;
+		float eps = 0.001F;
 		float delta = 0.0F;
 
 		while (iteration_number <= max_iterations)
@@ -183,9 +140,9 @@ int main(int argc, char** argv)
 					iteration_number << std::endl;
 				break;
 			}
-			if (points_changed == 0)
+			if (points_changed <= (int)(0.0005 * n))
 			{
-				std::cout << "Algorithm has been stopped as no points have changed their cluster in iteration nr. " <<
+				std::cout << "Algorithm has been stopped as less than 0.05% of points have changed their cluster in iteration nr. " <<
 					iteration_number << std::endl;
 				break;
 			}
@@ -209,7 +166,7 @@ int main(int argc, char** argv)
 		int max_iterations = 500;
 		int iteration_number = 0;
 		int points_changed = 0;
-		float eps = 0.0001F;
+		float eps = 0.001F;
 		float delta = 0.0F;
 
 		while (iteration_number <= max_iterations)
@@ -227,9 +184,9 @@ int main(int argc, char** argv)
 					iteration_number << std::endl;
 				break;
 			}
-			if (points_changed == 0)
+			if (points_changed <= (int)(0.0005 * n))
 			{
-				std::cout << "Algorithm has been stopped as no points have changed their cluster in iteration nr. " <<
+				std::cout << "Algorithm has been stopped as less than 0.05% of points have changed their cluster in iteration nr. " <<
 					iteration_number << std::endl;
 				break;
 			}
