@@ -16,17 +16,18 @@ set(SOURCES
     GPUSolution/k_means_data.cu
     GPUSolution/gpu1_kernel_functions.cu
     GPUSolution/gpu2_kernel_functions.cu
+    file_io.cpp
 )
 
-add_executable(KMeansApp ${SOURCES})
+add_executable(KMeans ${SOURCES})
 
-target_include_directories(KMeansApp PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(KMeans PRIVATE ${CMAKE_SOURCE_DIR})
 
-target_link_libraries(KMeansApp PRIVATE CUDA::cudart)
+target_link_libraries(KMeans PRIVATE CUDA::cudart)
 
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-target_compile_options(KMeansApp PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
+target_compile_options(KMeans PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)

@@ -11,6 +11,9 @@
 #include "GPUSolution/gpu2_kernel_functions.cuh"
 #include "file_io.h"
 
+#define MAX_ITERATIONS 100
+
+/*
 void usage(int argc, char** argv)
 {
 	std::cout << "USAGE: " << argv[0] << " <version> k n d\n";
@@ -20,6 +23,7 @@ void usage(int argc, char** argv)
 	std::cout << "\td - dimension (1 <= d <= 128)\n";
 	exit(EXIT_FAILURE);
 }
+*/
 
 void checkLoading(std::vector<float>& h_points, int n, int d, int k)
 {
@@ -34,6 +38,7 @@ void checkLoading(std::vector<float>& h_points, int n, int d, int k)
 	}
 }
 
+/*
 void initializeData(int k, int n, int d, std::vector<float>& h_points, std::vector<float>& h_centroids)
 {
 	std::mt19937 random_generator(time(NULL));
@@ -63,6 +68,7 @@ void initializeData(int k, int n, int d, std::vector<float>& h_points, std::vect
 		}
 	}
 }
+*/
 
 void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::vector<float>& soa)
 {
@@ -76,9 +82,17 @@ void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::
 	}
 }
 
+void print_usage(int argc, char** argv)
+{
+	std::cerr << "USAGE: " << argv[0] << " <data_format> <computation_method> <path_to_input_file> <path_to_output_file>\n";
+	std::cerr << "\t<data_format>: txt | bin\n";
+	std::cerr << "\t<computation_method>: cpu | gpu1 | gpu2\n";
+	exit(EXIT_FAILURE);
+}
 
 int main(int argc, char** argv)
 {
+	/*
 	{
 		// TESTING FEATURES
 		int n;
@@ -94,9 +108,64 @@ int main(int argc, char** argv)
 		else checkLoading(h_points, n, d, k);
 		return EXIT_SUCCESS;
 	}
+	*/
 
+	if (argc != 5)
+		print_usage(argc, argv);
 
+	std::string data_format = argv[1];
+	std::string computation_method = argv[2];
+	std::string input_file = argv[3];
+	std::string output_file = argv[4];
 
+	if (data_format != "txt" && data_format != "bin")
+	{
+		std::cerr << "Invalid input: data_format must be either 'txt' or 'bin'\n";
+		print_usage(argc, argv);
+	}
+	if (computation_method != "cpu" && computation_method != "gpu1" && computation_method != "gpu2")
+	{
+		std::cerr << "Invalid input: computation_method must be either 'cpu' or 'gpu1' or 'gpu2'\n";
+		print_usage(argc, argv);
+	}
+
+	auto start_total = std::chrono::high_resolution_clock::now();
+
+	std::vector<float> h_points;
+	std::vector<float> h_centroids;
+	std::vector<int> h_labels;
+	int n = 0;
+	int d = 0;
+	int k = 0;
+
+	std::cout << "Reading data from input file to cpu..." << std::endl;
+
+	auto start_read = std::chrono::high_resolution_clock::now();
+	if (!load_data(input_file, data_format, n, d, k, h_points))
+	{
+		std::cerr << "Error: can't load data from input_file\n";
+		return EXIT_FAILURE;
+	}
+	auto end_read = std::chrono::high_resolution_clock::now();
+	double read_time = std::chrono::duration<double>(end_read - start_read).count();
+	std::cout << "Data read successfully. Elapsed time: " << read_time << std::endl;
+	
+	h_labels.resize(n, -1);
+	h_centroids.resize(k * d);
+
+	for (int i = 0; i < k; i++)
+	{
+		for (int j = 0; j < d; j++)
+		{
+			h_centroids[i * d + j] = h_points[i * d + j];
+		}
+	}
+
+	run_k_means_algo(MAX_ITERATIONS, h_points, h_centroids, h_labels, k, n, d);
+	return EXIT_SUCCESS;
+	
+
+	/*
 	if (argc != 5)
 		usage(argc, argv);
 
@@ -222,4 +291,5 @@ int main(int argc, char** argv)
 	std::chrono::duration<double> elapsed = end_time - start_time;
 	std::cout << "Time elapsed: " << elapsed.count() << std::endl;
 	return 0;
+	*/
 }
