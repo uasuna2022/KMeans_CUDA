@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
+
+set(CMAKE_CUDA_ARCHITECTURES 60 75 86 89)
+
 project(KMeansGPU LANGUAGES CXX CUDA)
 
 find_package(CUDAToolkit REQUIRED)
@@ -6,9 +9,7 @@ find_package(CUDAToolkit REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
-if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-    set(CMAKE_CUDA_ARCHITECTURES 60 75 86 89)
-endif()
+
 
 set(SOURCES
     main.cpp
