@@ -78,7 +78,7 @@ __global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, c
 	}
 }
 
-void make_iteration_2(KMeansData* data, int* iteration_number, float* delta, int* points_changed)
+void make_iteration_2(KMeansData* data, int* iteration_number, int* points_changed)
 {
 	int N = data->n;
 	int K = data->k;
