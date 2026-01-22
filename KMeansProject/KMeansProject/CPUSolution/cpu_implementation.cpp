@@ -19,7 +19,7 @@ float calculate_distance_squared(const std::vector<float>& points, const std::ve
 }
 
 void run_k_means_algo(int max_iterations, const std::vector<float>& h_points,
-	std::vector<float>& h_centroids, std::vector<int>& h_labels, int k, int n, int d)
+	std::vector<float>& h_centroids, std::vector<int>& h_labels, int k, int n, int d, int* iterations_done)
 {
 	int iteration_number = 1;
 	std::vector<float> centroids_sum;
@@ -97,4 +97,5 @@ void run_k_means_algo(int max_iterations, const std::vector<float>& h_points,
 	if (iteration_number > max_iterations)
 		std::cout << "Algorithm has been stopped as maximum number of iterations happened" << std::endl;
 
+	*iterations_done = iteration_number - 1;
 }

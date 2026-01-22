@@ -148,7 +148,11 @@ int main(int argc, char** argv)
 	}
 	auto end_read = std::chrono::high_resolution_clock::now();
 	double read_time = std::chrono::duration<double>(end_read - start_read).count();
-	std::cout << "Data read successfully. Elapsed time: " << read_time << std::endl;
+	std::cout << "  Data format: " << data_format << std::endl;
+	std::cout << "  Number of points: " << n << std::endl;
+	std::cout << "  Dimension: " << d << std::endl;
+	std::cout << "  Number of clusters: " << k << std::endl;
+	std::cout << "Data read successfully. Elapsed time: " << read_time << "s" << std::endl;
 	
 	h_labels.resize(n, -1);
 	h_centroids.resize(k * d);
@@ -161,7 +165,43 @@ int main(int argc, char** argv)
 		}
 	}
 
-	run_k_means_algo(MAX_ITERATIONS, h_points, h_centroids, h_labels, k, n, d);
+	auto start_algo = std::chrono::high_resolution_clock::now();
+	auto end_algo = std::chrono::high_resolution_clock::now();
+	double algo_time;
+	if (computation_method == "cpu")
+	{
+		int iterations_done = 0;
+		start_algo = std::chrono::high_resolution_clock::now();
+		run_k_means_algo(MAX_ITERATIONS, h_points, h_centroids, h_labels, k, n, d, &iterations_done);
+		end_algo = std::chrono::high_resolution_clock::now();
+		algo_time = std::chrono::duration<double>(end_algo - start_algo).count();
+		std::cout << "Total computation time: " << std::fixed << std::setprecision(4) << algo_time << "s" << std::endl;
+		std::cout << "Average time per iteration: " << algo_time / (double)iterations_done << "s" << std::endl;
+	}
+	else if (computation_method == "gpu1")
+	{
+		// TODO
+	}
+	else if (computation_method == "gpu2")
+	{
+		// TODO
+	}
+
+	std::cout << "Saving computed results to the output_file...\n";
+	auto start_save = std::chrono::high_resolution_clock::now();
+	if (!save_results(output_file, h_labels, h_centroids, n, k, d))
+	{
+		std::cerr << "Error: can't save results to output_file\n";
+		return EXIT_FAILURE;
+	}
+	auto end_save = std::chrono::high_resolution_clock::now();
+	double save_time = std::chrono::duration<double>(end_save - start_save).count();
+	std::cout << "Results saved succesfully. Elapsed time: " << save_time << "s" << std::endl;
+
+	auto end_total = std::chrono::high_resolution_clock::now();
+	double total_time = std::chrono::duration<double>(end_total - start_total).count();
+	std::cout << std::endl << "Total time: " << total_time << "s" << std::endl;
+
 	return EXIT_SUCCESS;
 	
 

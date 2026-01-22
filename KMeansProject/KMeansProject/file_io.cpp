@@ -34,7 +34,7 @@ bool load_text(const char* filename, int& n, int& d, int& k, std::vector<float>&
 
 bool load_binary(const char* filename, int& n, int& d, int& k, std::vector<float>& h_points)
 {
-	FILE* f = fopen(filename, "r");
+	FILE* f = fopen(filename, "rb");
 	if (!f)
 		return false;
 
