@@ -18,7 +18,7 @@ public:
 	float* d_points;
 	float* d_centroids;
 	int* d_labels;
-	float* d_sums;
+	double* d_sums;
 	int* d_counts;
 	int* d_changes_count;
 

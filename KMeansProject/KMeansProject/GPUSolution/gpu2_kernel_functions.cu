@@ -59,7 +59,7 @@ __global__ void find_nearest_cluster(const float* __restrict__ d_points, const f
 	}
 }
 
-__global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, const float* __restrict__ d_sums,
+__global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, const double* __restrict__ d_sums,
 	const int* __restrict__ d_counts, int k, int d)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -71,20 +71,20 @@ __global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, c
 
 		if (count > 0)
 		{
-			float sum = d_sums[idx];
-			float new_val = sum / (float)count;
+			double sum = d_sums[idx];
+			float new_val = (float)(sum / (double)count);
 			d_centroids[idx] = new_val;
 		}
 	}
 }
 
-void make_iteration_2(KMeansData* data, int* iteration_number, float* delta, int* points_changed)
+void make_iteration_2(KMeansData* data, int* iteration_number, int* points_changed)
 {
 	int N = data->n;
 	int K = data->k;
 	int D = data->d;
 
-	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(float)));
+	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(double)));
 	CHECK_CUDA(cudaMemset(data->d_counts, 0, K * sizeof(int)));
 	CHECK_CUDA(cudaMemset(data->d_changes_count, 0, sizeof(int)));
 
@@ -97,9 +97,9 @@ void make_iteration_2(KMeansData* data, int* iteration_number, float* delta, int
 	static thrust::device_vector<int> th_labels_copy;
 	static thrust::device_vector<int> th_indices;
 
-	static thrust::device_vector<float> th_coords_gathered;
+	static thrust::device_vector<double> th_coords_gathered;
 	static thrust::device_vector<int> th_unique_keys;
-	static thrust::device_vector<float> th_reduced_sums;    
+	static thrust::device_vector<double> th_reduced_sums;    
 	static thrust::device_vector<int> th_reduced_counts;
 
 	if (th_labels_copy.size() != N) 
@@ -126,7 +126,7 @@ void make_iteration_2(KMeansData* data, int* iteration_number, float* delta, int
 	thrust::scatter(th_reduced_counts.begin(), end_counts.second, th_unique_keys.begin(), dev_counts);
 
 	thrust::device_ptr<float> dev_points(data->d_points);
-	thrust::device_ptr<float> dev_sums(data->d_sums);
+	thrust::device_ptr<double> dev_sums(data->d_sums);
 
 	for (int j = 0; j < D; j++)
 	{
