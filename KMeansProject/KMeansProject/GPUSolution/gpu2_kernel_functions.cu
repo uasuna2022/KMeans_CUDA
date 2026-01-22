@@ -60,7 +60,7 @@ __global__ void find_nearest_cluster(const float* __restrict__ d_points, const f
 }
 
 __global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, const float* __restrict__ d_sums,
-	const int* __restrict__ d_counts, int k, int d, float* __restrict__ d_deltas)
+	const int* __restrict__ d_counts, int k, int d)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -72,14 +72,8 @@ __global__ void calculate_centroids_and_delta(float* __restrict__ d_centroids, c
 		if (count > 0)
 		{
 			float sum = d_sums[idx];
-			float old_val = d_centroids[idx];
 			float new_val = sum / (float)count;
-
 			d_centroids[idx] = new_val;
-
-			float diff = new_val - old_val;
-			diff *= diff;
-			atomicAdd(&d_deltas[cluster_id], diff);
 		}
 	}
 }
@@ -93,10 +87,10 @@ void make_iteration_2(KMeansData* data, int* iteration_number, float* delta, int
 	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(float)));
 	CHECK_CUDA(cudaMemset(data->d_counts, 0, K * sizeof(int)));
 	CHECK_CUDA(cudaMemset(data->d_changes_count, 0, sizeof(int)));
-	CHECK_CUDA(cudaMemset(data->d_deltas, 0, K * sizeof(float)));
 
 	int blocks_number = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	find_nearest_cluster << <blocks_number, BLOCK_SIZE >> > (data->d_points, data->d_centroids, data->d_labels, N, K, D, data->d_changes_count);
+	find_nearest_cluster << <blocks_number, BLOCK_SIZE >> > (data->d_points, data->d_centroids, 
+		data->d_labels, N, K, D, data->d_changes_count);
 	CHECK_CUDA(cudaGetLastError());
 	CHECK_CUDA(cudaDeviceSynchronize());
 
@@ -147,17 +141,9 @@ void make_iteration_2(KMeansData* data, int* iteration_number, float* delta, int
 
 	int blocks_update = (K * D + BLOCK_SIZE - 1) / BLOCK_SIZE;
 	calculate_centroids_and_delta << <blocks_update, BLOCK_SIZE >> > (data->d_centroids, data->d_sums, data->d_counts,
-		K, D, data->d_deltas);
+		K, D);
 	CHECK_CUDA(cudaGetLastError());
 	CHECK_CUDA(cudaDeviceSynchronize());
-
-	std::vector<float> h_deltas(K);
-	CHECK_CUDA(cudaMemcpy(h_deltas.data(), data->d_deltas, K * sizeof(float), cudaMemcpyDeviceToHost));
-
-	float total_shift = 0.0f;
-	for (int i = 0; i < K; i++) 
-		total_shift += sqrt(h_deltas[i]);
-	*delta = total_shift;
 
 	CHECK_CUDA(cudaMemcpy(points_changed, data->d_changes_count, sizeof(int), cudaMemcpyDeviceToHost));
 

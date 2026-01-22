@@ -82,6 +82,17 @@ void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::
 	}
 }
 
+void cpu_transform_soa_to_aos(int n, int d, const std::vector<float>& soa, std::vector<float>& aos)
+{
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < d; j++)
+		{
+			aos[i * d + j] = soa[j * n + i];
+		}
+	}
+}
+
 void print_usage(int argc, char** argv)
 {
 	std::cerr << "USAGE: " << argv[0] << " <data_format> <computation_method> <path_to_input_file> <path_to_output_file>\n";
@@ -152,8 +163,8 @@ int main(int argc, char** argv)
 	std::cout << "  Number of points: " << n << std::endl;
 	std::cout << "  Dimension: " << d << std::endl;
 	std::cout << "  Number of clusters: " << k << std::endl;
-	std::cout << "Data read successfully. Elapsed time: " << read_time << "s" << std::endl;
-	
+	std::cout << "Data read successfully. Elapsed time: " << read_time << "s" << std::endl << std::endl;
+
 	h_labels.resize(n, -1);
 	h_centroids.resize(k * d);
 
@@ -180,7 +191,68 @@ int main(int argc, char** argv)
 	}
 	else if (computation_method == "gpu1")
 	{
-		// TODO
+		KMeansData data(n, k, d);
+		std::vector<float> h_points_soa;
+		std::vector<float> h_centroids_soa;
+
+		std::cout << "Transforming data from AoS to SoA (for better GPU perfomance)...\n";
+		auto start_transform = std::chrono::high_resolution_clock::now();
+		cpu_transform_aos_to_soa(n, d, h_points, h_points_soa);
+		cpu_transform_aos_to_soa(k, d, h_centroids, h_centroids_soa);
+		auto end_transform = std::chrono::high_resolution_clock::now();
+		std::cout << "Data transformed. Elapsed time: " << std::chrono::duration<double>(end_transform - start_transform).count() <<
+			"s" << std::endl << std::endl;
+
+		std::cout << "Copying data from CPU to GPU...\n";
+		auto copy_start = std::chrono::high_resolution_clock::now();
+		data.fill_gpu_data(h_points_soa, h_centroids_soa);
+		auto copy_end = std::chrono::high_resolution_clock::now();
+		std::cout << "Data copied. Elapsed time: " << std::chrono::duration<double>(copy_end - copy_start).count() << "s\n\n";
+
+		int iteration_number = 1;
+		int points_changed = 0;
+		start_algo = std::chrono::high_resolution_clock::now();
+
+		while (iteration_number <= MAX_ITERATIONS)
+		{
+			std::cout << "  Iteration " << std::setw(3) << iteration_number;
+			auto start_it = std::chrono::high_resolution_clock::now();
+			make_iteration(&data, &iteration_number, &points_changed);
+			auto end_it = std::chrono::high_resolution_clock::now();
+			double it_time = std::chrono::duration<double>(end_it - start_it).count();
+			std::cout << " | time = " << std::fixed << std::showpoint << std::setprecision(4) <<
+				it_time << "s | " << "changes = " << points_changed << std::endl;
+
+			if (points_changed == 0)
+			{
+				std::cout << "Algorithm has been stopped as no points have changed their cluster in iteration nr. " <<
+					iteration_number - 1 << std::endl;
+				break;
+			}
+		}
+		if (iteration_number > MAX_ITERATIONS)
+			std::cout << "Algorithm has been stopped as maximum number of iterations happened" << std::endl;
+
+		end_algo = std::chrono::high_resolution_clock::now();
+		algo_time = std::chrono::duration<double>(end_algo - start_algo).count();
+		std::cout << "Total computation time: " << std::fixed << std::setprecision(4) << algo_time << "s" << std::endl;
+		std::cout << "Average time per iteration: " << algo_time / (double)(iteration_number - 1) << "s\n" << std::endl;
+
+
+		std::cout << "Copying data from GPU to CPU...\n";
+		copy_start = std::chrono::high_resolution_clock::now();
+		CHECK_CUDA(cudaMemcpy(h_labels.data(), data.d_labels, n * sizeof(int), cudaMemcpyDeviceToHost));
+		CHECK_CUDA(cudaMemcpy(h_centroids_soa.data(), data.d_centroids, k * d * sizeof(float), cudaMemcpyDeviceToHost));
+		copy_end = std::chrono::high_resolution_clock::now();
+		std::cout << "Data copied. Elapsed time: " << std::chrono::duration<double>(copy_end - copy_start).count() << "s\n\n";
+
+		std::cout << "Transforming data from SoA to AoS back...\n";
+		start_transform = std::chrono::high_resolution_clock::now();
+		cpu_transform_soa_to_aos(k, d, h_centroids_soa, h_centroids);
+		end_transform = std::chrono::high_resolution_clock::now();
+		std::cout << "Data transformed. Elapsed time: " << std::chrono::duration<double>(end_transform - start_transform).count() <<
+			"s" << std::endl << std::endl;
+
 	}
 	else if (computation_method == "gpu2")
 	{
@@ -203,7 +275,7 @@ int main(int argc, char** argv)
 	std::cout << std::endl << "Total time: " << total_time << "s" << std::endl;
 
 	return EXIT_SUCCESS;
-	
+}
 
 	/*
 	if (argc != 5)
@@ -332,4 +404,3 @@ int main(int argc, char** argv)
 	std::cout << "Time elapsed: " << elapsed.count() << std::endl;
 	return 0;
 	*/
-}

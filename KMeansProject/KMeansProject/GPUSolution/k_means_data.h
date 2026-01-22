@@ -20,7 +20,6 @@ public:
 	int* d_labels;
 	float* d_sums;
 	int* d_counts;
-	float* d_deltas;
 	int* d_changes_count;
 
 	KMeansData(int n, int k, int d);
