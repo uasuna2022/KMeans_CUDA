@@ -85,3 +85,27 @@ bool load_data(const std::string& filename, const std::string& format,
 		return load_binary(filename.c_str(), n, d, k, h_points);
 	else return false;
 }
+
+bool save_results(const std::string& filename, const std::vector<int>& h_labels,
+	const std::vector<float>& h_centroids, int n, int k, int d)
+{
+	FILE* f = fopen(filename.c_str(), "w");
+	if (!f)
+		return false;
+
+	for (int i = 0; i < k; i++)
+	{
+		for (int j = 0; j < d; j++)
+		{
+			fprintf(f, "%f%s", h_centroids[i * d + j], j == (d - 1) ? "" : " ");
+		}
+		fprintf(f, "\n");
+	}
+
+	for (int i = 0; i < n; i++)
+		fprintf(f, "%d\n", h_labels[i]);
+	
+
+	fclose(f);
+	return true;
+}
