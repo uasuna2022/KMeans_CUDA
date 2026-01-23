@@ -10,65 +10,10 @@
 #include "GPUSolution/gpu1_kernel_functions.cuh"
 #include "GPUSolution/gpu2_kernel_functions.cuh"
 #include "file_io.h"
+#include <fstream>
 
 #define MAX_ITERATIONS 100
-
-/*
-void usage(int argc, char** argv)
-{
-	std::cout << "USAGE: " << argv[0] << " <version> k n d\n";
-	std::cout << "\t<version> - cpu/gpu1/gpu2\n";
-	std::cout << "\tk - number of clusters (2 <= k <= 10)\n";
-	std::cout << "\tn - number of points (1000 <= n <= 10000000)\n";
-	std::cout << "\td - dimension (1 <= d <= 128)\n";
-	exit(EXIT_FAILURE);
-}
-*/
-
-void checkLoading(std::vector<float>& h_points, int n, int d, int k)
-{
-	std::cout << n << " " << d << " " << k << std::endl;
-	for (int i = 0; i < n; i++)
-	{
-		for (int j = 0; j < d; j++)
-		{
-			std::cout << h_points[i * d + j] << " ";
-		}
-		std::cout << std::endl;
-	}
-}
-
-/*
-void initializeData(int k, int n, int d, std::vector<float>& h_points, std::vector<float>& h_centroids)
-{
-	std::mt19937 random_generator(time(NULL));
-	std::uniform_real_distribution<float> distribution(0.0F, 1.0F);
-
-	h_points.resize(n * d);
-	h_centroids.resize(k * d);
-
-	for (int i = 0; i < n * d; i++)
-	{
-		h_points[i] = distribution(random_generator);
-	}
-
-	std::vector<int> indices;
-	for (int i = 0; i < n; i++)
-	{
-		indices.push_back(i);
-	}
-	std::shuffle(indices.begin(), indices.end(), random_generator);
-
-	for (int i = 0; i < k; i++)
-	{
-		int random_index = indices[i];
-		for (int j = 0; j < d; j++)
-		{
-			h_centroids[d * i + j] = h_points[random_index * d + j];
-		}
-	}
-}
-*/
+//#define COMPARE_FILES
 
 void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::vector<float>& soa)
 {
@@ -95,7 +40,7 @@ void cpu_transform_soa_to_aos(int n, int d, const std::vector<float>& soa, std::
 
 void print_usage(int argc, char** argv)
 {
-	std::cerr << "USAGE: " << argv[0] << " <data_format> <computation_method> <path_to_input_file> <path_to_output_file>\n";
+	std::cerr << "USAGE: " << "KMeans" << " <data_format> <computation_method> <path_to_input_file> <path_to_output_file>\n";
 	std::cerr << "\t<data_format>: txt | bin\n";
 	std::cerr << "\t<computation_method>: cpu | gpu1 | gpu2\n";
 	exit(EXIT_FAILURE);
@@ -103,24 +48,6 @@ void print_usage(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	/*
-	{
-		// TESTING FEATURES
-		int n;
-		int k;
-		int d;
-		std::vector<float> h_points;
-		const std::string filename = "./data/data.txt";
-		if (!load_data(filename, "txt", n, d, k, h_points))
-		{
-			std::cout << "ERROR!" << std::endl;
-			return EXIT_FAILURE;
-		}
-		else checkLoading(h_points, n, d, k);
-		return EXIT_SUCCESS;
-	}
-	*/
-
 	if (argc != 5)
 		print_usage(argc, argv);
 
@@ -271,6 +198,66 @@ int main(int argc, char** argv)
 	auto end_total = std::chrono::high_resolution_clock::now();
 	double total_time = std::chrono::duration<double>(end_total - start_total).count();
 	std::cout << std::endl << "Total time: " << total_time << "s" << std::endl;
+
+
+#ifdef COMPARE_FILES
+	std::string path1, path2;
+
+	std::cout << "Enter 1st file path: ";
+	std::cin >> path1;
+	std::cout << "Enter 2nd file path: ";
+	std::cin >> path2;
+
+	std::ifstream file1(path1);
+	std::ifstream file2(path2);
+
+	if (!file1 || !file2) 
+	{
+		std::cerr << "Error: can't read files!" << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	std::string line1, line2;
+	int currentLine = 1;
+	std::vector<int> differingLines;
+
+	while (std::getline(file1, line1) && std::getline(file2, line2)) 
+	{
+		if (line1 != line2)
+			differingLines.push_back(currentLine);
+		currentLine++;
+	}
+
+	bool extraLines = false;
+	while (std::getline(file1, line1)) 
+	{
+		if (!extraLines) 
+			differingLines.push_back(currentLine);
+		extraLines = true;
+		currentLine++;
+	}
+	while (std::getline(file2, line2)) 
+	{
+		if (!extraLines) 
+			differingLines.push_back(currentLine);
+		extraLines = true;
+		currentLine++;
+	}
+
+	std::cout << "\n--- RESULT ---" << std::endl;
+	if (differingLines.empty())
+		std::cout << "Files are identical" << std::endl;
+	
+	else 
+	{
+		std::cout << "Found differences in the following lines: " << std::endl;
+		for (size_t i = 0; i < differingLines.size(); ++i) 
+			std::cout << differingLines[i] << (i == differingLines.size() - 1 ? "" : ", ");
+		
+		std::cout << std::endl;
+		std::cout << "Overall different lines: " << differingLines.size() << std::endl;
+	}
+#endif
 
 	return EXIT_SUCCESS;
 }
