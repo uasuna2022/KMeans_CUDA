@@ -6,12 +6,12 @@
 #define BLOCK_SIZE 512
 
 __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, float* __restrict__ d_centroids, 
-	int* __restrict__ d_labels, int n, int k, int d, float* __restrict__ d_sums, int* __restrict__ d_counts,
+	int* __restrict__ d_labels, int n, int k, int d, double* __restrict__ d_sums, int* __restrict__ d_counts,
 	int* __restrict__ d_changes_count)
 {
 	extern __shared__ char shared_memory[];
-	int* shared_counts = (int*)shared_memory;
-	float* shared_sums = (float*)(shared_counts + k);
+	double* shared_sums = (double*)shared_memory;
+	int* shared_counts = (int*)&shared_sums[k * d];
 
 	__shared__ int shared_block_changes_counter;
 
@@ -23,7 +23,7 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 	for (int i = tid; i < k; i += blockDim.x)
 		shared_counts[i] = 0;
 	for (int i = tid; i < k * d; i += blockDim.x)
-		shared_sums[i] = 0.0F;
+		shared_sums[i] = 0.0;
 	
 	__syncthreads();
 
@@ -56,7 +56,10 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 		atomicAdd(&shared_counts[nearest_cluster], 1);
 
 		for (int j = 0; j < d; j++)
-			atomicAdd(&shared_sums[j * k + nearest_cluster], d_points[n * j + idx]);
+		{
+			double value = (double)d_points[n * j + idx];
+			atomicAdd(&shared_sums[j * k + nearest_cluster], value);
+		}
 	}
 
 	__syncthreads();
@@ -72,7 +75,7 @@ __global__ void calculate_sums_and_counts(const float* __restrict__ d_points, fl
 		atomicAdd(&d_sums[i], shared_sums[i]);
 }
 
-__global__ void update_centroids(float* __restrict__ d_centroids, const float* __restrict__ d_sums,
+__global__ void update_centroids(float* __restrict__ d_centroids, const double* __restrict__ d_sums,
 	const int* d_counts, int k, int d)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -81,7 +84,7 @@ __global__ void update_centroids(float* __restrict__ d_centroids, const float* _
 		int count = d_counts[idx % k];
 		if (count > 0)
 		{
-			float new_value = d_sums[idx] / (float)count;
+			float new_value = (float)(d_sums[idx] / (double)count);
 			d_centroids[idx] = new_value;
 		}
 	}
@@ -93,12 +96,12 @@ void make_iteration(KMeansData* data, int* iteration_number, int* points_changed
 	int K = data->k;
 	int D = data->d;
 
-	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(float)));
+	CHECK_CUDA(cudaMemset(data->d_sums, 0, K * D * sizeof(double)));
 	CHECK_CUDA(cudaMemset(data->d_counts, 0, K * sizeof(int)));
 	CHECK_CUDA(cudaMemset(data->d_changes_count, 0, sizeof(int)));
 
 	int blocks_number = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	size_t shared_memory_size = K * sizeof(int) + K * D * sizeof(float);
+	size_t shared_memory_size = K * sizeof(int) + K * D * sizeof(double);
 
 	calculate_sums_and_counts << <blocks_number, BLOCK_SIZE, shared_memory_size>> > (
 		data->d_points, data->d_centroids, data->d_labels, N, K, D, data->d_sums, data->d_counts, data->d_changes_count);
