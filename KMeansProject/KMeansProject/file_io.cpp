@@ -95,15 +95,16 @@ bool save_results(const std::string& filename, const std::vector<int>& h_labels,
 
 	for (int i = 0; i < k; i++)
 	{
+		fprintf(f, "  ");
 		for (int j = 0; j < d; j++)
 		{
-			fprintf(f, "%f%s", h_centroids[i * d + j], j == (d - 1) ? "" : " ");
+			fprintf(f, "%.4f%s", h_centroids[i * d + j], j == (d - 1) ? "" : " ");
 		}
 		fprintf(f, "\n");
 	}
 
 	for (int i = 0; i < n; i++)
-		fprintf(f, "%d\n", h_labels[i]);
+		fprintf(f, "  %d\n", h_labels[i]);
 	
 
 	fclose(f);
