@@ -15,6 +15,7 @@
 #define MAX_ITERATIONS 100
 //#define COMPARE_FILES
 
+// Helper to transform data from AoS format to SoA format (for faster GPU algorithm flow).
 void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::vector<float>& soa)
 {
 	soa.resize(n * d);
@@ -27,6 +28,7 @@ void cpu_transform_aos_to_soa(int n, int d, const std::vector<float>& aos, std::
 	}
 }
 
+// Helper to transform data from SoA back to AoS to represent results in understandable way.
 void cpu_transform_soa_to_aos(int n, int d, const std::vector<float>& soa, std::vector<float>& aos)
 {
 	for (int i = 0; i < n; i++)

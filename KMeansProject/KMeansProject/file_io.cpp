@@ -1,5 +1,6 @@
 #include "file_io.h"
 
+// Loads a data from text file to the appropriate variables.
 bool load_text(const char* filename, int& n, int& d, int& k, std::vector<float>& h_points)
 {
 	FILE* f = fopen(filename, "r");
@@ -32,6 +33,7 @@ bool load_text(const char* filename, int& n, int& d, int& k, std::vector<float>&
 	return true;
 }
 
+// Loads data from binary file to the appropriate variables.
 bool load_binary(const char* filename, int& n, int& d, int& k, std::vector<float>& h_points)
 {
 	FILE* f = fopen(filename, "rb");
@@ -76,6 +78,7 @@ bool load_binary(const char* filename, int& n, int& d, int& k, std::vector<float
 	return true;
 }
 
+// We call this function inside main.cpp.
 bool load_data(const std::string& filename, const std::string& format,
 	int& n, int& d, int& k, std::vector<float>& h_points)
 {
@@ -86,6 +89,7 @@ bool load_data(const std::string& filename, const std::string& format,
 	else return false;
 }
 
+// Saves results after algorithm flow to the output text file.
 bool save_results(const std::string& filename, const std::vector<int>& h_labels,
 	const std::vector<float>& h_centroids, int n, int k, int d)
 {

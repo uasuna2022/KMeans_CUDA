@@ -9,6 +9,10 @@
 		exit(1); \
 	 } } while (0) 
 
+// KMeansData class is created to hold all the necessary data for algo inside one object. 
+// Contains some helper methods like allocate_memory and free_memory (no explanation needed here)
+// and fill_gpu_data method, which copies some data from host to device and initializes the rest of
+// objects with zeros.
 class KMeansData {
 public:
 	int n;
